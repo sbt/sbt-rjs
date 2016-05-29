@@ -11,7 +11,7 @@ scalaVersion := "2.10.4"
 scalacOptions += "-feature"
 
 libraryDependencies ++= Seq(
-  "org.webjars" % "rjs" % "2.1.15"
+  "org.webjars" % "requirejs-node" % "2.1.17"
 )
 
 addSbtPlugin("com.typesafe.sbt" % "sbt-js-engine" % "1.1.1")
