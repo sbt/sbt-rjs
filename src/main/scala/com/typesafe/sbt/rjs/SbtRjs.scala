@@ -70,7 +70,11 @@ object SbtRjs extends AutoPlugin {
     removeCombined := true,
     resourceManaged in rjs := webTarget.value / rjs.key.label,
     rjs := runOptimizer.dependsOn(webJarsNodeModules in Plugin).value,
-    webJarCdns := Map("org.webjars" -> "//cdn.jsdelivr.net/webjars")
+    webJarCdns := Map(
+        "org.webjars" -> "//cdn.jsdelivr.net/webjars",
+        "org.webjars.npm" -> "//cdn.jsdelivr.net/webjars",
+        "org.webjars.bower" -> "//cdn.jsdelivr.net/webjars"
+    )
   )
 
 
