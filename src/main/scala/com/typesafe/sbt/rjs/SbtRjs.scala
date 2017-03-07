@@ -176,6 +176,7 @@ object SbtRjs extends AutoPlugin {
       val optimizerMappings = mappings.filter(f => !f._1.isDirectory && include.accept(f._1) && !exclude.accept(f._1))
       SbtWeb.syncMappings(
         streams.value.cacheDirectory,
+        "rjs-cache",
         optimizerMappings,
         appDir.value
       )
