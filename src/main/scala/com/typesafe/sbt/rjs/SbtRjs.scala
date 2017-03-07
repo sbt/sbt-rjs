@@ -30,7 +30,15 @@ object Import {
     val paths = TaskKey[Map[String, (String, String)]]("rjs-paths", "RequireJS path mappings of module ids to a tuple of the build path and production path. By default all WebJar libraries are made available from a CDN and their mappings can be found here (unless the cdn is set to None).")
     val preserveLicenseComments = SettingKey[Boolean]("rjs-preserve-license-comments", "Whether to preserve comments or not. Defaults to false given source maps (see http://requirejs.org/docs/errors.html#sourcemapcomments).")
     val removeCombined = SettingKey[Boolean]("rjs-remove-combined", "Whether to remove source files. Defaults to true.")
-    val webJarCdns = SettingKey[Map[String, String]]("rjs-webjar-cdns", """CDNs to be used for locating WebJars. By default "org.webjars" is mapped to "jsdelivr".""")
+    val webJarCdnPatterns = SettingKey[Map[String, String]]("rjs-webjar-cdns",
+      """A map of (organization, patterns) to be used for locating WebJars on public CDNs.
+        |By default classic web jars CDN pattern is //cdn.jsdelivr.net/webjars/{name}/{revision}/{path}.
+        |By default npm web jars CDN pattern is "//npmcdn.com/{name}@{revision}/{path}".
+        |By default bower web jars CDN pattern is "//bowercdn.net/c/{name}-{revision}/{path}"
+        |The {name} is replaced with the module name.
+        |The {revision} is replaced with the module revision.
+        |The {path} is replaced with the module relative path from the webLib settings.""".stripMargin
+    )
   }
 
 }
@@ -70,7 +78,11 @@ object SbtRjs extends AutoPlugin {
     removeCombined := true,
     resourceManaged in rjs := webTarget.value / rjs.key.label,
     rjs := runOptimizer.dependsOn(webJarsNodeModules in Plugin).value,
-    webJarCdns := Map("org.webjars" -> "//cdn.jsdelivr.net/webjars")
+    webJarCdnPatterns := Map(
+      "org.webjars" -> "//cdn.jsdelivr.net/webjars/{name}/{revision}/{path}",
+      "org.webjars.npm" -> "//npmcdn.com/{name}@{revision}/{path}",
+      "org.webjars.bower" -> "//bowercdn.net/c/{name}-{revision}/{path}"
+    )
   )
 
 
@@ -150,13 +162,14 @@ object SbtRjs extends AutoPlugin {
       }
       val webJarCdnPaths = for {
         m <- allDependencies(update.value)
-        cdn <- webJarCdns.value.get(m.organization)
+        cdnPattern <- webJarCdnPatterns.value.get(m.organization)
       } yield for {
           pm <- pathModuleMappings.from(m.name + "/") if pm._1.startsWith(m.name + "/")
         } yield {
           val (moduleIdPath, moduleId) = pm
           val moduleIdRelPath = minifiedModulePath(moduleIdPath).drop(m.name.size + 1)
-          moduleId ->(lib + moduleIdPath, s"$cdn/${m.name}/${m.revision}/$moduleIdRelPath")
+          val cdnPath = cdnPattern.replace("{name}", m.name).replace("{revision}", m.revision).replace("{path}", moduleIdRelPath)
+          moduleId -> (lib + moduleIdPath, cdnPath)
         }
       webJarCdnPaths.flatten.toMap
     }
