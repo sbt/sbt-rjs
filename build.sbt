@@ -7,4 +7,4 @@ libraryDependencies ++= Seq(
   "org.webjars" % "rjs" % "2.2.0"
 )
 
-addSbtJsEngine("1.2.0")
+addSbtJsEngine("1.2.1")
