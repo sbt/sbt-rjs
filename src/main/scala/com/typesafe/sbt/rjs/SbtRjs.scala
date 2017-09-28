@@ -2,13 +2,15 @@ package com.typesafe.sbt.rjs
 
 import sbt._
 import sbt.Keys._
-import com.typesafe.sbt.web.SbtWeb
+import com.typesafe.sbt.web.{Compat, SbtWeb}
 import com.typesafe.sbt.web.SbtWeb.autoImport.WebJs._
 import com.typesafe.sbt.web.pipeline.Pipeline
 import com.typesafe.sbt.jse.{SbtJsEngine, SbtJsTask}
 import java.nio.charset.Charset
 import scala.collection.immutable.SortedMap
 import java.io.{InputStreamReader, BufferedReader}
+import com.typesafe.sbt.compat.Sbt10Compat
+import Sbt10Compat.SbtIoPath._
 
 object Import {
 
@@ -132,8 +134,12 @@ object SbtRjs extends AutoPlugin {
      * js files are made known to it (which is slow).
      */
     val maybeMainConfigFile = (mappings in Assets).value.find(_._2 == mainConfigFile.value.getPath).map(_._1)
+    val webLib = webModulesLib.value
+    val webJarsDirectoryValue = (webJarsDirectory in Assets).value
+    val webJarsValue = (webJars in Assets).value
+    val updateValue = update.value
     maybeMainConfigFile.fold(Map[String, (String, String)]()) { f =>
-      val lib = unixPath(withSep(webModulesLib.value))
+      val lib = unixPath(withSep(webLib))
       val config = IO.read(f, Utf8)
       val pathModuleMappings = SortedMap(
         s"""['"]?([^\\s'"]*)['"]?\\s*:\\s*[\\[]?.*['"].*/$lib(.*)['"]""".r
@@ -142,14 +148,14 @@ object SbtRjs extends AutoPlugin {
           .toIndexedSeq
           : _*
       )
-      val webJarLocalPathPrefix = withSep((webJarsDirectory in Assets).value.getPath) + lib
-      val webJarRelPaths = (webJars in Assets).value.map(f => unixPath(f.getPath.drop(webJarLocalPathPrefix.size))).toSet
+      val webJarLocalPathPrefix = withSep(webJarsDirectoryValue.getPath) + lib
+      val webJarRelPaths = webJarsValue.map(f => unixPath(f.getPath.drop(webJarLocalPathPrefix.size))).toSet
       def minifiedModulePath(p: String): String = {
         def ifExists(p: String): Option[String] = if (webJarRelPaths.contains(p + ".js")) Some(p) else None
         ifExists(p + ".min").orElse(ifExists(p + "-min")).getOrElse(p)
       }
       val webJarCdnPaths = for {
-        m <- allDependencies(update.value)
+        m <- allDependencies(updateValue)
         cdn <- webJarCdns.value.get(m.organization)
       } yield for {
           pm <- pathModuleMappings.from(m.name + "/") if pm._1.startsWith(m.name + "/")
@@ -169,40 +175,51 @@ object SbtRjs extends AutoPlugin {
   }
 
   private def runOptimizer: Def.Initialize[Task[Pipeline.Stage]] = Def.task {
+    val include = (includeFilter in rjs).value
+    val exclude = (excludeFilter in rjs).value
+    val appDirValue = appDir.value
+    val streamsValue = streams.value
+    val dirValue = dir.value
+    val targetBuildProfileFile = (resourceManaged in rjs).value / "app.build.js"
+
+    val timeoutPerSourceValue = (timeoutPerSource in rjs).value
+    val appBuildProfileValue = appBuildProfile.value
+    val webJarsNodeModulesDirectoryValue = (webJarsNodeModulesDirectory in Plugin).value
+    val stateValue = state.value
+    val engineTypeValue = (engineType in rjs).value
+    val commandValue = (command in rjs).value
     mappings =>
 
-      val include = (includeFilter in rjs).value
-      val exclude = (excludeFilter in rjs).value
+
       val optimizerMappings = mappings.filter(f => !f._1.isDirectory && include.accept(f._1) && !exclude.accept(f._1))
       SbtWeb.syncMappings(
-        streams.value.cacheDirectory,
-        "sync-rjs",
+        Compat.cacheStore(streamsValue, "sync-rjs"),
         optimizerMappings,
-        appDir.value
+        appDirValue
       )
 
-      val targetBuildProfileFile = (resourceManaged in rjs).value / "app.build.js"
-      IO.write(targetBuildProfileFile, appBuildProfile.value.js, Utf8)
 
-      val cacheDirectory = streams.value.cacheDirectory / rjs.key.label
+      IO.write(targetBuildProfileFile, appBuildProfileValue.js, Utf8)
+
+      val cacheDirectory = streamsValue.cacheDirectory / rjs.key.label
       val runUpdate = FileFunction.cached(cacheDirectory, FilesInfo.hash) {
         _ =>
-          streams.value.log.info("Optimizing JavaScript with RequireJS")
+          streamsValue.log.info("Optimizing JavaScript with RequireJS")
 
           SbtJsTask.executeJs(
-            state.value,
-            (engineType in rjs).value,
-            (command in rjs).value,
+            stateValue,
+            engineTypeValue,
+            commandValue,
             Nil,
-            (webJarsNodeModulesDirectory in Plugin).value / "requirejs" / "bin" / "r.js",
+            webJarsNodeModulesDirectoryValue / "requirejs" / "bin" / "r.js",
             Seq("-o", targetBuildProfileFile.getAbsolutePath),
-            (timeoutPerSource in rjs).value * optimizerMappings.size
+            timeoutPerSourceValue * optimizerMappings.size
           )
 
-          dir.value.***.get.toSet
+          dirValue.***.get.toSet
       }
 
-      val optimizedMappings = runUpdate(appDir.value.***.get.toSet).filter(_.isFile).pair(relativeTo(dir.value))
+      val optimizedMappings = runUpdate(appDirValue.***.get.toSet).filter(_.isFile).pair(relativeTo(dirValue))
       (mappings.toSet -- optimizerMappings.toSet ++ optimizedMappings).toSeq
   }
 

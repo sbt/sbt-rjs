@@ -4,7 +4,9 @@ description := "Allows RequireJS to be used from within sbt"
 scalacOptions += "-feature"
 
 libraryDependencies ++= Seq(
-  "org.webjars" % "rjs" % "2.2.0"
+  "org.webjars" % "rjs" % "2.3.5"
 )
 
-addSbtJsEngine("1.2.1")
+addSbtJsEngine("1.2.2")
+
+scalaVersion := "2.10.6"
