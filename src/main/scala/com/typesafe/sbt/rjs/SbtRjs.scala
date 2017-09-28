@@ -9,9 +9,6 @@ import com.typesafe.sbt.jse.{SbtJsEngine, SbtJsTask}
 import java.nio.charset.Charset
 import scala.collection.immutable.SortedMap
 import java.io.{InputStreamReader, BufferedReader}
-import com.typesafe.sbt.compat.Sbt10Compat
-import Sbt10Compat.SbtIoPath._
-
 object Import {
 
   val rjs = TaskKey[Pipeline.Stage]("rjs", "Perform RequireJs optimization on the asset pipeline.")
