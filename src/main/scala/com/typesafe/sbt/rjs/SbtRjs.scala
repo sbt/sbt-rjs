@@ -9,6 +9,9 @@ import com.typesafe.sbt.jse.{SbtJsEngine, SbtJsTask}
 import java.nio.charset.Charset
 import scala.collection.immutable.SortedMap
 import java.io.{InputStreamReader, BufferedReader}
+import com.typesafe.sbt.compat.Sbt10Compat
+import Sbt10Compat.SbtIoPath._
+
 object Import {
 
   val rjs = TaskKey[Pipeline.Stage]("rjs", "Perform RequireJs optimization on the asset pipeline.")
@@ -213,10 +216,10 @@ object SbtRjs extends AutoPlugin {
             timeoutPerSourceValue * optimizerMappings.size
           )
 
-          dirValue.***.get.toSet
+          Sbt10Compat.allPaths(dirValue).get.toSet
       }
 
-      val optimizedMappings = runUpdate(appDirValue.***.get.toSet).filter(_.isFile).pair(relativeTo(dirValue))
+      val optimizedMappings = runUpdate(Sbt10Compat.allPaths(appDirValue).get.toSet).filter(_.isFile).pair(relativeTo(dirValue))
       (mappings.toSet -- optimizerMappings.toSet ++ optimizedMappings).toSeq
   }
 
