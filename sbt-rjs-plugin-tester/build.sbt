@@ -6,7 +6,7 @@ lazy val root = (project in file(".")).enablePlugins(SbtWeb)
 JsEngineKeys.engineType := JsEngineKeys.EngineType.Node
 
 libraryDependencies ++= Seq(
-  "org.webjars" % "requirejs" % "2.3.5",
+  "org.webjars" % "requirejs" % "2.3.6",
   "org.webjars" % "underscorejs" % "1.6.0-1"
 )
 

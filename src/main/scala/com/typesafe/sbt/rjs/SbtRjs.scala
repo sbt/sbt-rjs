@@ -2,15 +2,14 @@ package com.typesafe.sbt.rjs
 
 import sbt._
 import sbt.Keys._
-import com.typesafe.sbt.web.{Compat, SbtWeb}
+import sbt.io.Path._
+import com.typesafe.sbt.web.SbtWeb
 import com.typesafe.sbt.web.SbtWeb.autoImport.WebJs._
 import com.typesafe.sbt.web.pipeline.Pipeline
 import com.typesafe.sbt.jse.{SbtJsEngine, SbtJsTask}
 import java.nio.charset.Charset
 import scala.collection.immutable.SortedMap
 import java.io.{InputStreamReader, BufferedReader}
-import com.typesafe.sbt.compat.Sbt10Compat
-import Sbt10Compat.SbtIoPath._
 
 object Import {
 
@@ -54,14 +53,14 @@ object SbtRjs extends AutoPlugin {
 
   override def projectSettings = Seq(
     appBuildProfile := getAppBuildProfile.value,
-    appDir := (resourceManaged in rjs).value / "appdir",
+    appDir := (rjs / resourceManaged).value / "appdir",
     baseUrl := getBaseUrl.value,
     buildProfile := JS.Object.empty,
     buildWriter := getBuildWriter.value,
-    dir := (resourceManaged in rjs).value / "build",
-    excludeFilter in rjs := HiddenFileFilter,
+    dir := (rjs / resourceManaged).value / "build",
+    rjs / excludeFilter := HiddenFileFilter,
     generateSourceMaps := true,
-    includeFilter in rjs := GlobFilter("*.js") | GlobFilter("*.css") | GlobFilter("*.map"),
+    rjs / includeFilter := GlobFilter("*.js") | GlobFilter("*.css") | GlobFilter("*.map"),
     mainConfig := mainModule.value,
     mainConfigFile := new File(baseUrl.value, mainConfig.value + ".js"),
     mainModule := "main",
@@ -70,8 +69,8 @@ object SbtRjs extends AutoPlugin {
     paths := getWebJarPaths.value,
     preserveLicenseComments := false,
     removeCombined := true,
-    resourceManaged in rjs := webTarget.value / rjs.key.label,
-    rjs := runOptimizer.dependsOn(webJarsNodeModules in Plugin).value,
+    rjs / resourceManaged := webTarget.value / rjs.key.label,
+    rjs := runOptimizer.dependsOn(Plugin / webJarsNodeModules).value,
     webJarCdns := Map("org.webjars" -> "//cdn.jsdelivr.net/webjars")
   )
 
@@ -97,7 +96,7 @@ object SbtRjs extends AutoPlugin {
   private def getBaseUrl: Def.Initialize[Task[String]] = Def.task {
     def dirIfExists(dir: String): Option[String] = {
       val dirPath = dir + java.io.File.separator
-      if ((mappings in Assets).value.exists(m => m._2.startsWith(dirPath))) {
+      if ((Assets / mappings).value.exists(m => m._2.startsWith(dirPath))) {
         Some(dir)
       } else {
         None
@@ -133,10 +132,10 @@ object SbtRjs extends AutoPlugin {
      * what it really needs to process as opposed to an alternate strategy where all WebJar
      * js files are made known to it (which is slow).
      */
-    val maybeMainConfigFile = (mappings in Assets).value.find(_._2 == mainConfigFile.value.getPath).map(_._1)
+    val maybeMainConfigFile = (Assets / mappings).value.find(_._2 == mainConfigFile.value.getPath).map(_._1)
     val webLib = webModulesLib.value
-    val webJarsDirectoryValue = (webJarsDirectory in Assets).value
-    val webJarsValue = (webJars in Assets).value
+    val webJarsDirectoryValue = (Assets / webJarsDirectory).value
+    val webJarsValue = (Assets / webJars).value
     val updateValue = update.value
     maybeMainConfigFile.fold(Map[String, (String, String)]()) { f =>
       val lib = unixPath(withSep(webLib))
@@ -175,25 +174,25 @@ object SbtRjs extends AutoPlugin {
   }
 
   private def runOptimizer: Def.Initialize[Task[Pipeline.Stage]] = Def.task {
-    val include = (includeFilter in rjs).value
-    val exclude = (excludeFilter in rjs).value
+    val include = (rjs / includeFilter).value
+    val exclude = (rjs / excludeFilter).value
     val appDirValue = appDir.value
     val streamsValue = streams.value
     val dirValue = dir.value
-    val targetBuildProfileFile = (resourceManaged in rjs).value / "app.build.js"
+    val targetBuildProfileFile = (rjs / resourceManaged).value / "app.build.js"
 
-    val timeoutPerSourceValue = (timeoutPerSource in rjs).value
+    //val timeoutPerSourceValue = (rjs / timeoutPerSource).value
     val appBuildProfileValue = appBuildProfile.value
-    val webJarsNodeModulesDirectoryValue = (webJarsNodeModulesDirectory in Plugin).value
+    val webJarsNodeModulesDirectoryValue = (Plugin / webJarsNodeModulesDirectory).value
     val stateValue = state.value
-    val engineTypeValue = (engineType in rjs).value
-    val commandValue = (command in rjs).value
+    val engineTypeValue = (rjs / engineType).value
+    val commandValue = (rjs / command).value
     mappings =>
 
 
       val optimizerMappings = mappings.filter(f => !f._1.isDirectory && include.accept(f._1) && !exclude.accept(f._1))
       SbtWeb.syncMappings(
-        Compat.cacheStore(streamsValue, "sync-rjs"),
+        streamsValue.cacheStoreFactory.make("sync-rjs"),
         optimizerMappings,
         appDirValue
       )
@@ -213,13 +212,13 @@ object SbtRjs extends AutoPlugin {
             Nil,
             webJarsNodeModulesDirectoryValue / "requirejs" / "bin" / "r.js",
             Seq("-o", targetBuildProfileFile.getAbsolutePath),
-            timeoutPerSourceValue * optimizerMappings.size
+            //timeoutPerSourceValue * optimizerMappings.size
           )
 
-          Sbt10Compat.allPaths(dirValue).get.toSet
+          dirValue.allPaths.get.toSet
       }
 
-      val optimizedMappings = runUpdate(Sbt10Compat.allPaths(appDirValue).get.toSet).filter(_.isFile).pair(relativeTo(dirValue))
+      val optimizedMappings = runUpdate(appDirValue.allPaths.get.toSet).filter(_.isFile).pair(relativeTo(dirValue))
       (mappings.toSet -- optimizerMappings.toSet ++ optimizedMappings).toSeq
   }
 

@@ -1,7 +1,7 @@
 sbt-rjs
 =======
 
-[![Build Status](https://api.travis-ci.org/sbt/sbt-rjs.png?branch=master)](https://travis-ci.org/sbt/sbt-rjs)
+[![Build Status](https://github.com/sbt/sbt-rjs/actions/workflows/build-test.yml/badge.svg)](https://github.com/sbt/sbt-rjs/actions/workflows/build-test.yml)
 
 Setup
 -----
@@ -10,7 +10,7 @@ An SBT plugin to perform [RequireJs optimization](http://requirejs.org/docs/opti
 
 To use this plugin use the addSbtPlugin command within your project's `plugins.sbt` file:
 
-    addSbtPlugin("com.typesafe.sbt" % "sbt-rjs" % "1.0.10")
+    addSbtPlugin("com.github.sbt" % "sbt-rjs" % "2.0.0")
 
 Your project's build file also needs to enable sbt-web plugins. For example with build.sbt:
 
@@ -95,6 +95,4 @@ import RjsKeys._
 modules += JS.Object("name" -> "foo/bar/bip", "exclude" -> Seq("foo/bar/bop"))
 ```
 
-The plugin is built on top of [JavaScript Engine](https://github.com/typesafehub/js-engine) which supports different JavaScript runtimes.
-
-&copy; 2014-2017 [Lightbend Inc.](https://www.lightbend.com)
+The plugin is built on top of [JavaScript Engine](https://github.com/sbt/sbt-js-engine) which supports different JavaScript runtimes.
