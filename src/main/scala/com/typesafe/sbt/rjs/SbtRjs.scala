@@ -107,7 +107,7 @@ object SbtRjs extends AutoPlugin {
 
   private def getBuildWriter: Def.Initialize[Task[JavaScript]] = Def.task {
     val source = getResourceAsList("buildWriter.js")
-      .to[Vector]
+      .to(Vector)
       .dropRight(1) :+ s"""})(
           ${JS(unixPath(mainConfigFile.value.toString))},
           ${JS(paths.value.map(e => e._2._1 -> e._2._2))}
@@ -157,7 +157,7 @@ object SbtRjs extends AutoPlugin {
         m <- allDependencies(updateValue)
         cdn <- webJarCdns.value.get(m.organization)
       } yield for {
-          pm <- pathModuleMappings.from(m.name + "/") if pm._1.startsWith(m.name + "/")
+          pm <- pathModuleMappings.rangeFrom(m.name + "/") if pm._1.startsWith(m.name + "/")
         } yield {
           val (moduleIdPath, moduleId) = pm
           val moduleIdRelPath = minifiedModulePath(moduleIdPath).drop(m.name.size + 1)
