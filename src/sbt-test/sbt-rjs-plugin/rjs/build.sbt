@@ -22,5 +22,5 @@ checkCdn := {
 }
 
 // Add an extra file to confuse the thing that finds the main.js mapping
-mappings in Assets := (baseDirectory.value / "src" / "main" / "foos" / "javascripts" / "main.js.foo", "javascripts/main.js.foo") +: (mappings in Assets).value
+Assets / mappings := (baseDirectory.value / "src" / "main" / "foos" / "javascripts" / "main.js.foo", "javascripts/main.js.foo") +: (Assets / mappings).value
 

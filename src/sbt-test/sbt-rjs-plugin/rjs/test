@@ -1,6 +1,6 @@
 # Optimize RequireJs files.
 
-> web-stage
+> webStage
 $ exists target/web/stage/javascripts/main.js
 $ exists target/web/stage/javascripts/main.js.map
 
