@@ -2,8 +2,6 @@ lazy val `sbt-rjs` = project in file(".")
 
 enablePlugins(SbtWebBase)
 
-sonatypeProfileName := "com.github.sbt.sbt-rjs" // See https://issues.sonatype.org/browse/OSSRH-77819#comment-1203625
-
 description := "Allows RequireJS to be used from within sbt"
 
 developers += Developer(
