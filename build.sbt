@@ -29,10 +29,6 @@ lazy val `sbt-rjs` = (project in file("."))
       }
     },
 
-    // sbt-web-build-base sets -Xfatal-warnings; Scala 3 deprecates that flag name (warn-as-error loop).
-    Compile / scalacOptions ~= { opts =>
-      opts.map { case "-Xfatal-warnings" => "-Werror"; case o => o }.distinct
-    },
   )
 
 // Customise sbt-dynver's behaviour to make it work with tags which aren't v-prefixed
