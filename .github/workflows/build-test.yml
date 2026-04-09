@@ -18,9 +18,11 @@ jobs:
     uses: playframework/.github/.github/workflows/cmd.yml@v3
     with:
       java: 17, 11, 8
-      scala: 2.12.21
+      scala: 2.12.20, 3.8.2
+      # Scala 3 / sbt 2 axis does not support Java 8.
+      exclude: '[{"java": "8", "scala": "3.8.2"}]'
       cmd: |
-        sbt ++$MATRIX_SCALA test ^scripted
+        sbt ++$MATRIX_SCALA test scripted
 
   finish:
     name: Finish

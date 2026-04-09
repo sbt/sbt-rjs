@@ -3,6 +3,7 @@ package com.typesafe.sbt.rjs
 import sbt._
 import sbt.Keys._
 import sbt.io.Path._
+import com.typesafe.sbt.PluginCompat
 import com.typesafe.sbt.web.SbtWeb
 import com.typesafe.sbt.web.SbtWeb.autoImport.WebJs._
 import com.typesafe.sbt.web.pipeline.Pipeline
@@ -10,24 +11,32 @@ import com.typesafe.sbt.jse.{SbtJsEngine, SbtJsTask}
 import java.nio.charset.Charset
 import scala.collection.immutable.SortedMap
 import java.io.{InputStreamReader, BufferedReader}
+import xsbti.FileConverter
 
 object Import {
 
+  @transient
   val rjs = TaskKey[Pipeline.Stage]("rjs", "Perform RequireJs optimization on the asset pipeline.")
 
   object RjsKeys {
+    @transient
     val appBuildProfile = TaskKey[JS.Object]("rjs-app-build-profile", "The project build profile contents.")
     val appDir = SettingKey[File]("rjs-app-dir", "The top level directory that contains your app js files. In effect, this is the source folder that rjs reads from.")
+    @transient
     val baseUrl = TaskKey[String]("rjs-base-url", """The dir relative to the source assets or public folder where js files are housed. Will default to "js", "javascripts" or "." with the latter if the other two cannot be found.""")
+    @transient
     val buildProfile = TaskKey[JS.Object]("rjs-build-profile", "Build profile key -> value settings in addition to the defaults supplied by appBuildProfile. Any settings in here will also replace any defaults.")
+    @transient
     val buildWriter = TaskKey[JavaScript]("rjs-build-writer", "The project build writer JavaScript that is responsible for writing out source files in rjs.")
     val dir = SettingKey[File]("rjs-dir", "By default, all modules are located relative to this path. In effect this is the target directory for rjs.")
     val generateSourceMaps = SettingKey[Boolean]("rjs-generate-source-maps", "By default, source maps are generated.")
     val mainConfig = SettingKey[String]("rjs-main-config", "By default, 'main' is used as the module for configuration.")
+    @transient
     val mainConfigFile = TaskKey[File]("rjs-main-config-file", "The full path to the main configuration file.")
     val mainModule = SettingKey[String]("rjs-main-module", "By default, 'main' is used as the module.")
     val modules = SettingKey[Seq[JS.Object]]("rjs-modules", "The json array of modules.")
     val optimize = SettingKey[String]("rjs-optimize", "The name of the optimizer, defaults to uglify2.")
+    @transient
     val paths = TaskKey[Map[String, (String, String)]]("rjs-paths", "RequireJS path mappings of module ids to a tuple of the build path and production path. By default all WebJar libraries are made available from a CDN and their mappings can be found here (unless the cdn is set to None).")
     val preserveLicenseComments = SettingKey[Boolean]("rjs-preserve-license-comments", "Whether to preserve comments or not. Defaults to false given source maps (see http://requirejs.org/docs/errors.html#sourcemapcomments).")
     val removeCombined = SettingKey[Boolean]("rjs-remove-combined", "Whether to remove source files. Defaults to true.")
@@ -74,7 +83,6 @@ object SbtRjs extends AutoPlugin {
     webJarCdns := Map("org.webjars" -> "//cdn.jsdelivr.net/webjars")
   )
 
-
   val Utf8 = Charset.forName("UTF-8")
 
   private def getAppBuildProfile: Def.Initialize[Task[JS.Object]] = Def.task {
@@ -107,7 +115,7 @@ object SbtRjs extends AutoPlugin {
 
   private def getBuildWriter: Def.Initialize[Task[JavaScript]] = Def.task {
     val source = getResourceAsList("buildWriter.js")
-      .to[Vector]
+      .toVector
       .dropRight(1) :+ s"""})(
           ${JS(unixPath(mainConfigFile.value.toString))},
           ${JS(paths.value.map(e => e._2._1 -> e._2._2))}
@@ -138,15 +146,16 @@ object SbtRjs extends AutoPlugin {
     val webJarsValue = (Assets / webJars).value
     val updateValue = update.value
     maybeMainConfigFile.fold(Map[String, (String, String)]()) { f =>
+      implicit val conv: FileConverter = fileConverter.value
       val lib = unixPath(withSep(webLib))
-      val config = IO.read(f, Utf8)
-      val pathModuleMappings = SortedMap(
+      val config = IO.read(PluginCompat.toFile(f), Utf8)
+      val pathModulePairs =
         s"""['"]?([^\\s'"]*)['"]?\\s*:\\s*[\\[]?.*['"].*/$lib(.*)['"]""".r
           .findAllIn(config)
-          .matchData.map(m => m.subgroups(1) -> m.subgroups(0))
+          .matchData
+          .map(m => m.subgroups(1) -> m.subgroups(0))
           .toIndexedSeq
-          : _*
-      )
+      val pathModuleMappings = SortedMap.empty[String, String] ++ pathModulePairs
       val webJarLocalPathPrefix = withSep(webJarsDirectoryValue.getPath) + lib
       val webJarRelPaths = webJarsValue.map(f => unixPath(f.getPath.drop(webJarLocalPathPrefix.size))).toSet
       def minifiedModulePath(p: String): String = {
@@ -157,7 +166,7 @@ object SbtRjs extends AutoPlugin {
         m <- allDependencies(updateValue)
         cdn <- webJarCdns.value.get(m.organization)
       } yield for {
-          pm <- pathModuleMappings.from(m.name + "/") if pm._1.startsWith(m.name + "/")
+          pm <- pathModuleMappings if pm._1.startsWith(m.name + "/")
         } yield {
           val (moduleIdPath, moduleId) = pm
           val moduleIdRelPath = minifiedModulePath(moduleIdPath).drop(m.name.size + 1)
@@ -181,22 +190,25 @@ object SbtRjs extends AutoPlugin {
     val dirValue = dir.value
     val targetBuildProfileFile = (rjs / resourceManaged).value / "app.build.js"
 
-    //val timeoutPerSourceValue = (rjs / timeoutPerSource).value
     val appBuildProfileValue = appBuildProfile.value
     val webJarsNodeModulesDirectoryValue = (Plugin / webJarsNodeModulesDirectory).value
     val stateValue = state.value
     val engineTypeValue = (rjs / engineType).value
     val commandValue = (rjs / command).value
+    val fileConverterValue = fileConverter.value
+    implicit val conv: FileConverter = fileConverterValue
     mappings =>
 
-
-      val optimizerMappings = mappings.filter(f => !f._1.isDirectory && include.accept(f._1) && !exclude.accept(f._1))
+      val optimizerMappings = mappings.filter { m =>
+        val jf = PluginCompat.toFile(m._1)
+        !jf.isDirectory && include.accept(jf) && !exclude.accept(jf)
+      }
       SbtWeb.syncMappings(
         streamsValue.cacheStoreFactory.make("sync-rjs"),
         optimizerMappings,
-        appDirValue
+        appDirValue,
+        fileConverterValue
       )
-
 
       IO.write(targetBuildProfileFile, appBuildProfileValue.js, Utf8)
 
@@ -211,14 +223,16 @@ object SbtRjs extends AutoPlugin {
             commandValue,
             Nil,
             webJarsNodeModulesDirectoryValue / "requirejs" / "bin" / "r.js",
-            Seq("-o", targetBuildProfileFile.getAbsolutePath),
-            //timeoutPerSourceValue * optimizerMappings.size
+            Seq("-o", targetBuildProfileFile.getAbsolutePath)
           )
 
-          dirValue.allPaths.get.toSet
+          dirValue.allPaths.get().toSet
       }
 
-      val optimizedMappings = runUpdate(appDirValue.allPaths.get.toSet).filter(_.isFile).pair(relativeTo(dirValue))
+      val optimizedMappings = runUpdate(appDirValue.allPaths.get().toSet)
+        .filter(_.isFile)
+        .pair(relativeTo(dirValue))
+        .map { case (f, s) => (PluginCompat.toFileRef(f), s) }
       (mappings.toSet -- optimizerMappings.toSet ++ optimizedMappings).toSeq
   }
 
@@ -231,6 +245,6 @@ object SbtRjs extends AutoPlugin {
    * @param p path
    * @return
    */
-  private def unixPath(p: String): String = p.replace("\\","/")
+  private def unixPath(p: String): String = p.replace("\\", "/")
 
 }
