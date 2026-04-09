@@ -1,4 +1,4 @@
-import sbt.RjsScriptedCompat
+import sbtcompat.PluginCompat
 import xsbti.FileConverter
 
 lazy val root = (project in file("."))
@@ -30,8 +30,9 @@ checkCdn := {
 }
 
 // Add an extra file to confuse the thing that finds the main.js mapping (cross sbt 1 / sbt 2).
+// sbt2-compat: use implicit FileConverter (sbt 1) / applies to sbt 2 overload too.
 Assets / mappings := {
   implicit val conv: FileConverter = fileConverter.value
   val f = baseDirectory.value / "src" / "main" / "foos" / "javascripts" / "main.js.foo"
-  (RjsScriptedCompat.toAssetRef(f), "javascripts/main.js.foo") +: (Assets / mappings).value
+  (PluginCompat.toFileRef(f), "javascripts/main.js.foo") +: (Assets / mappings).value
 }
