@@ -19,8 +19,8 @@ jobs:
     with:
       java: 17, 11, 8
       scala: 2.12.20, 3.8.2
-      # Scala 3 / sbt 2 axis does not support Java 8.
-      exclude: '[{"java": "8", "scala": "3.8.2"}]'
+      # Scala 3.8.x compiler bridge requires Java 17 (excludes 8 and 11).
+      exclude: '[{"java": "8", "scala": "3.8.2"}, {"java": "11", "scala": "3.8.2"}]'
       cmd: |
         sbt ++$MATRIX_SCALA test scripted
 
