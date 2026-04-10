@@ -1,21 +1,35 @@
-lazy val `sbt-rjs` = project in file(".")
+lazy val scala212 = "2.12.21"
+lazy val scala3 = "3.8.3"
 
-enablePlugins(SbtWebBase)
+ThisBuild / crossScalaVersions := Seq(scala212, scala3)
+ThisBuild / scalaVersion := scala212
 
-description := "Allows RequireJS to be used from within sbt"
+lazy val `sbt-rjs` = (project in file("."))
+  .enablePlugins(SbtWebBase)
+  .settings(
+    description := "Allows RequireJS to be used from within sbt",
 
-developers += Developer(
-  "playframework",
-  "The Play Framework Team",
-  "contact@playframework.com",
-  url("https://github.com/playframework")
-)
+    developers += Developer(
+      "playframework",
+      "The Play Framework Team",
+      "contact@playframework.com",
+      url("https://github.com/playframework")
+    ),
 
-addSbtJsEngine("1.3.9")
+    addSbtJsEngine("1.4.0-M4"),
 
-libraryDependencies ++= Seq(
-  "org.webjars" % "rjs" % "2.3.6"
-)
+    libraryDependencies ++= Seq(
+      "org.webjars" % "rjs" % "2.3.6"
+    ),
+
+    pluginCrossBuild / sbtVersion := {
+      scalaBinaryVersion.value match {
+        case "2.12" => "1.12.9"
+        case _      => "2.0.0-RC11"
+      }
+    },
+
+  )
 
 // Customise sbt-dynver's behaviour to make it work with tags which aren't v-prefixed
 ThisBuild / dynverVTagPrefix := false
