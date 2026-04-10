@@ -16,7 +16,7 @@ lazy val `sbt-rjs` = (project in file("."))
       url("https://github.com/playframework")
     ),
 
-    addSbtJsEngine("1.4.0-M3"),
+    addSbtJsEngine("1.4.0-M4"),
 
     libraryDependencies ++= Seq(
       "org.webjars" % "rjs" % "2.3.6"
