@@ -29,6 +29,13 @@ lazy val `sbt-rjs` = (project in file("."))
       }
     },
 
+    scalacOptions ++= {
+      scalaBinaryVersion.value match {
+        case "2.12" => Seq("-Xsource:3", "-release:8")
+        case _      => Nil
+      }
+    },
+
   )
 
 // Customise sbt-dynver's behaviour to make it work with tags which aren't v-prefixed
