@@ -36,3 +36,7 @@ Assets / mappings := {
   val f = baseDirectory.value / "src" / "main" / "foos" / "javascripts" / "main.js.foo"
   (PluginCompat.toFileRef(f), "javascripts/main.js.foo") +: (Assets / mappings).value
 }
+
+ThisBuild / scalaVersion := {
+  if (sbtVersion.value.startsWith("1.")) "2.12.21" else "3.9.0"
+}
